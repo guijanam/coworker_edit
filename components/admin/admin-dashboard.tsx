@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  COWORKER_COLUMNS,
+  VISIBLE_COWORKER_COLUMNS,
   type CoworkerInput,
   type CoworkerRow,
 } from "@/lib/coworker-types";
@@ -102,7 +102,6 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
       if (!q) return true;
       return (
         r.staff_name?.toLowerCase().includes(q) ||
-        String(r.staff_id).includes(q) ||
         r.office_name?.toLowerCase().includes(q) ||
         r.phone_number?.toLowerCase().includes(q)
       );
@@ -192,7 +191,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="이름, 사번, 소속, 전화번호 검색"
+            placeholder="이름, 소속, 전화번호 검색"
             className="pl-8 w-64"
           />
         </div>
@@ -256,7 +255,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
           <Table className="min-w-max">
             <TableHeader>
               <TableRow>
-                {COWORKER_COLUMNS.map((col) => (
+                {VISIBLE_COWORKER_COLUMNS.map((col) => (
                   <TableHead
                     key={col.key}
                     className="bg-background text-xs whitespace-nowrap text-center"
@@ -273,7 +272,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
               {isLoading && rows.length === 0 ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={`sk-${i}`}>
-                    {COWORKER_COLUMNS.map((col) => (
+                    {VISIBLE_COWORKER_COLUMNS.map((col) => (
                       <TableCell key={col.key}>
                         <Skeleton className="h-4 w-20" />
                       </TableCell>
@@ -286,7 +285,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
               ) : filtered.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={COWORKER_COLUMNS.length + 1}
+                    colSpan={VISIBLE_COWORKER_COLUMNS.length + 1}
                     className="text-center text-muted-foreground py-8"
                   >
                     {rows.length === 0
@@ -297,7 +296,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
               ) : (
                 filtered.map((row) => (
                   <TableRow key={row.staff_id}>
-                    {COWORKER_COLUMNS.map((col) => (
+                    {VISIBLE_COWORKER_COLUMNS.map((col) => (
                       <TableCell
                         key={col.key}
                         className="text-xs whitespace-nowrap text-center"
@@ -351,7 +350,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
         title="근무자 삭제"
         description={
           deleteTarget
-            ? `${deleteTarget.staff_name} (사번 ${deleteTarget.staff_id}) 항목을 정말 삭제하시겠습니까?`
+            ? `${deleteTarget.staff_name} 님의 데이터를 정말 삭제하시겠습니까?`
             : ""
         }
         footer={

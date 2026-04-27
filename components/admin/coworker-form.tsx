@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
 import {
   COWORKER_COLUMNS,
+  type CoworkerColumnMeta,
   type CoworkerInput,
   type CoworkerRow,
 } from "@/lib/coworker-types";
@@ -36,6 +38,16 @@ export function CoworkerForm({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // 폼에 실제로 렌더링할 컬럼:
+  // - hidden 컬럼은 기본 제외
+  // - 단 staff_id는 PK이므로 create 모드에서만 노출
+  const visibleFields: CoworkerColumnMeta[] = useMemo(() => {
+    return COWORKER_COLUMNS.filter((col) => {
+      if (col.key === "staff_id") return mode === "create";
+      return !col.hidden;
+    });
+  }, [mode]);
+
   useEffect(() => {
     if (!open) return;
     if (initial) {
@@ -58,18 +70,23 @@ export function CoworkerForm({
   const handleSubmit = async () => {
     setError(null);
 
-    const required = COWORKER_COLUMNS.filter((c) => c.required);
-    for (const col of required) {
-      if (!values[col.key]?.trim()) {
+    // 보이는 필드의 required만 체크
+    for (const col of visibleFields) {
+      if (col.required && !values[col.key]?.trim()) {
         setError(`${col.label}은(는) 필수입니다.`);
         return;
       }
     }
 
-    const staffIdNum = Number(values.staff_id);
-    if (!Number.isFinite(staffIdNum)) {
-      setError("사번은 숫자여야 합니다.");
-      return;
+    let staffIdNum: number | undefined;
+    if (mode === "create") {
+      staffIdNum = Number(values.staff_id);
+      if (!Number.isFinite(staffIdNum)) {
+        setError("사번은 숫자여야 합니다.");
+        return;
+      }
+    } else if (initial) {
+      staffIdNum = initial.staff_id;
     }
 
     const payload: CoworkerInput = {
@@ -80,8 +97,9 @@ export function CoworkerForm({
       phone_number: emptyToNull(values.phone_number),
       reference_date: emptyToNull(values.reference_date),
       reference_shift: emptyToNull(values.reference_shift),
-      pattern_id: emptyToNull(values.pattern_id),
-      user_id: emptyToNull(values.user_id),
+      // 숨김 필드는 기존 값 유지 (수정 시), 추가 시에는 null
+      pattern_id: initial?.pattern_id ?? null,
+      user_id: initial?.user_id ?? null,
     };
 
     setIsSaving(true);
@@ -119,7 +137,7 @@ export function CoworkerForm({
       }
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {COWORKER_COLUMNS.map((col) => (
+        {visibleFields.map((col) => (
           <div key={col.key} className="space-y-1.5">
             <Label htmlFor={`field-${col.key}`}>
               {col.label}
@@ -127,16 +145,30 @@ export function CoworkerForm({
                 <span className="text-destructive ml-0.5">*</span>
               )}
             </Label>
-            <Input
-              id={`field-${col.key}`}
-              type={col.type}
-              value={values[col.key] ?? ""}
-              onChange={(e) => handleChange(col.key, e.target.value)}
-              disabled={
-                isSaving || (mode === "edit" && col.key === "staff_id")
-              }
-              required={col.required}
-            />
+            {col.type === "select" ? (
+              <Select
+                id={`field-${col.key}`}
+                value={values[col.key] ?? ""}
+                onChange={(e) => handleChange(col.key, e.target.value)}
+                disabled={isSaving}
+              >
+                <option value="">선택하세요</option>
+                {(col.options ?? []).map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <Input
+                id={`field-${col.key}`}
+                type={col.type}
+                value={values[col.key] ?? ""}
+                onChange={(e) => handleChange(col.key, e.target.value)}
+                disabled={isSaving}
+                required={col.required}
+              />
+            )}
           </div>
         ))}
       </div>
