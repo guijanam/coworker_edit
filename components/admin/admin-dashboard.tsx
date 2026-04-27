@@ -127,9 +127,19 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
     const scoped: CoworkerInput = { ...input, office_name: office };
 
     if (formMode === "create") {
-      const { error } = await supabase.from(TABLE).insert(scoped);
+      let nextStaffId = await allocateNextStaffId();
+      let { error } = await supabase
+        .from(TABLE)
+        .insert({ ...scoped, staff_id: nextStaffId });
+      // PK 충돌(동시 추가)이면 한 번 더 재시도
+      if (error && /duplicate key|23505/i.test(error.message)) {
+        nextStaffId = await allocateNextStaffId();
+        ({ error } = await supabase
+          .from(TABLE)
+          .insert({ ...scoped, staff_id: nextStaffId }));
+      }
       if (error) throw new Error(error.message);
-      setInfo(`${scoped.staff_name} 님을 추가했습니다.`);
+      setInfo(`${scoped.staff_name} 님을 추가했습니다. (사번 ${nextStaffId})`);
     } else if (editingRow) {
       const { error } = await supabase
         .from(TABLE)
@@ -142,6 +152,18 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
     setFormOpen(false);
     setEditingRow(null);
     await fetchRows();
+  };
+
+  // 전체 테이블에서 가장 큰 staff_id + 1을 발급. 충돌 시 1회 재시도.
+  const allocateNextStaffId = async (): Promise<number> => {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select("staff_id")
+      .order("staff_id", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const max = data?.[0]?.staff_id ?? 0;
+    return max + 1;
   };
 
   const handleDelete = async () => {

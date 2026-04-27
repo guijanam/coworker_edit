@@ -42,16 +42,14 @@ export function CoworkerForm({
   const [isSaving, setIsSaving] = useState(false);
 
   // 폼에 실제로 렌더링할 컬럼:
-  // - hidden 컬럼은 기본 제외
-  // - staff_id는 PK이므로 create 모드에서만 노출
+  // - hidden 컬럼은 기본 제외 (staff_id는 자동 발급이므로 추가 시에도 숨김)
   // - office_name은 hidden이지만 잠금 상태로 항상 보여줌 (현재 소속 확인용)
   const visibleFields: CoworkerColumnMeta[] = useMemo(() => {
     return COWORKER_COLUMNS.filter((col) => {
-      if (col.key === "staff_id") return mode === "create";
       if (col.key === "office_name") return true;
       return !col.hidden;
     });
-  }, [mode]);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -87,19 +85,9 @@ export function CoworkerForm({
       }
     }
 
-    let staffIdNum: number | undefined;
-    if (mode === "create") {
-      staffIdNum = Number(values.staff_id);
-      if (!Number.isFinite(staffIdNum)) {
-        setError("사번은 숫자여야 합니다.");
-        return;
-      }
-    } else if (initial) {
-      staffIdNum = initial.staff_id;
-    }
-
+    // staff_id: create 시에는 부모(handleSubmit)에서 자동 발급하므로 보내지 않음
     const payload: CoworkerInput = {
-      staff_id: staffIdNum,
+      staff_id: mode === "edit" ? initial?.staff_id : undefined,
       staff_name: values.staff_name.trim(),
       staff_position: emptyToNull(values.staff_position),
       office_name: emptyToNull(values.office_name),
