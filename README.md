@@ -11,10 +11,13 @@
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-ADMIN_PASSWORD=원하는_비밀번호
+
+# 소속별 관리자 비밀번호 — JSON 한 줄, key는 coworker_list.office_name과 일치해야 함
+ADMIN_PASSWORDS={"동대문승무소":"dongdaemun1234","대공원승무소":"daegongwon1234"}
 ```
 
-`ADMIN_PASSWORD`는 절대 클라이언트로 노출되지 않으며, 서버 라우트(`/api/admin/login`)에서만 사용됩니다.
+`ADMIN_PASSWORDS`는 절대 클라이언트로 노출되지 않으며, 서버 라우트(`/api/admin/login`)에서만 사용됩니다.
+비밀번호를 추가/변경하려면 `.env.local`을 수정하고 서버를 재시작(또는 Vercel 등에서는 env 갱신 후 재배포)하면 됩니다.
 
 ### 2. 의존성 설치 / 실행
 
@@ -29,11 +32,13 @@ npm run dev
 
 ## 관리자 대시보드 기능
 
+- 로그인 시 **소속을 드롭다운에서 선택** (목록은 `coworker_list.office_name` distinct 자동 추출)
+- 소속별로 **별도의 비밀번호** (`ADMIN_PASSWORDS`)
 - `coworker_list` 테이블 전체 조회 (사번 오름차순)
 - 이름·사번·소속·전화번호로 검색
 - 직무(`staff_position`)별 필터 탭
 - 행 추가 / 수정 / 삭제 (모달 폼)
-- HttpOnly 쿠키 기반 세션 (8시간), Next.js proxy(미들웨어)에서 `/admin/*` 보호
+- HttpOnly 쿠키 기반 세션 (8시간, 소속+비번 SHA-256으로 위조 방지), Next.js proxy(미들웨어)에서 `/admin/*` 보호
 - 다크 모드 토글, 원본 디자인(shadcn/ui + Tailwind v4) 유지
 
 ### 다루는 컬럼
@@ -62,8 +67,9 @@ app/
     login/page.tsx         # 관리자 로그인
     page.tsx               # 관리자 대시보드 (서버에서 인증 체크)
   api/admin/
-    login/route.ts         # 비밀번호 검증 + 세션 쿠키 발급
+    login/route.ts         # 소속+비밀번호 검증 + 세션 쿠키 발급
     logout/route.ts        # 세션 쿠키 제거
+    offices/route.ts       # 로그인 화면용 소속 목록 (anon 권한, distinct office_name)
 components/
   admin/
     admin-dashboard.tsx    # 목록 + 검색 + CRUD 트리거

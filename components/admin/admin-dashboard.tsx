@@ -36,7 +36,11 @@ import { cn } from "@/lib/utils";
 
 const TABLE = "coworker_list";
 
-export function AdminDashboard() {
+interface AdminDashboardProps {
+  office: string;
+}
+
+export function AdminDashboard({ office }: AdminDashboardProps) {
   const router = useRouter();
 
   const [rows, setRows] = useState<CoworkerRow[]>([]);
@@ -165,7 +169,7 @@ export function AdminDashboard() {
       <header className="sticky top-0 z-30 flex items-center gap-2 px-4 py-3 border-b bg-background/95 backdrop-blur">
         <h1 className="text-base font-bold">근무자 관리</h1>
         <Badge variant="secondary" className="ml-1">
-          coworker_list
+          {office}
         </Badge>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />

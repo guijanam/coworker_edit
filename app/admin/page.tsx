@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-auth";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const ok = await isAdminAuthenticated();
-  if (!ok) redirect("/admin/login");
-  return <AdminDashboard />;
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  return <AdminDashboard office={session.office} />;
 }
