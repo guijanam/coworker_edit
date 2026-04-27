@@ -1,0 +1,160 @@
+"use client";
+
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
+import type { ScheduleRecord, PositionTab } from "@/lib/types";
+import {
+  getTodayMonthStr,
+  generateDateRange,
+  computeScheduleRange,
+  computeInitialRange,
+  buildScheduleMap,
+} from "@/lib/schedule-utils";
+import { ScheduleControls } from "@/components/schedule-controls";
+import { ScheduleTable } from "@/components/schedule-table";
+import { BottomTabs } from "@/components/bottom-tabs";
+
+export function ScheduleViewer() {
+  const [selectedTab, setSelectedTab] = useState<PositionTab>("기관사");
+  const [monthValue, setMonthValue] = useState(getTodayMonthStr());
+  const [searchFilter, setSearchFilter] = useState("");
+  const [allData, setAllData] = useState<ScheduleRecord[]>([]);
+  const [dateRange, setDateRange] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [maintenance, setMaintenance] = useState<{
+    is_active: boolean;
+    message: string;
+  } | null>(null);
+
+  const fetchSchedule = useCallback(async (start: string, end: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [scheduleResult, holidayResult] = await Promise.all([
+        supabase
+          .rpc("get_schedule_by_range", {
+            p_start_date: start,
+            p_end_date: end,
+          })
+          .range(0, 10000),
+        supabase
+          .from("holidays")
+          .select("locdate")
+          .eq("is_holiday", "Y")
+          .gte("locdate", start)
+          .lte("locdate", end),
+      ]);
+
+      if (scheduleResult.error) throw scheduleResult.error;
+
+      const holidayDates = new Set<string>(
+        (holidayResult.data ?? []).map((h: { locdate: string }) => h.locdate)
+      );
+      setHolidays(holidayDates);
+
+      if (!scheduleResult.data || scheduleResult.data.length === 0) {
+        setAllData([]);
+        setDateRange(generateDateRange(start, end));
+        return;
+      }
+
+      setAllData(scheduleResult.data as ScheduleRecord[]);
+      setDateRange(generateDateRange(start, end));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "데이터 로딩 실패";
+      setError(message);
+      setAllData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    supabase
+      .from("maintenance")
+      .select("is_active, message")
+      .eq("id", 1)
+      .single()
+      .then(({ data }) => {
+        if (data?.is_active) {
+          setMaintenance(data);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    const { start, end } = computeInitialRange();
+    fetchSchedule(start, end);
+  }, [fetchSchedule]);
+
+  const handleSearch = useCallback(() => {
+    if (!monthValue) {
+      setError("조회할 월을 선택해주세요.");
+      return;
+    }
+
+    const range = computeScheduleRange(monthValue);
+    if (!range) {
+      setError(`${monthValue}월은 이미 지난 월입니다.`);
+      setAllData([]);
+      return;
+    }
+
+    fetchSchedule(range.start, range.end);
+  }, [monthValue, fetchSchedule]);
+
+  const { names, scheduleMap } = useMemo(
+    () => buildScheduleMap(allData, selectedTab, searchFilter),
+    [allData, selectedTab, searchFilter]
+  );
+
+  const emptyMessage = useMemo(() => {
+    if (isLoading || error) return null;
+    if (allData.length === 0) return "표시할 데이터가 없습니다. 조회를 눌러주세요.";
+    if (names.length === 0 && searchFilter)
+      return "검색 결과가 없습니다.";
+    if (names.length === 0)
+      return `"${selectedTab}" 탭의 데이터가 없습니다.`;
+    return null;
+  }, [isLoading, error, allData.length, names.length, searchFilter, selectedTab]);
+
+  if (maintenance) {
+    return (
+      <div className="flex items-center justify-center h-dvh px-6">
+        <div className="text-center space-y-4">
+          <div className="text-4xl">🔧</div>
+          <h1 className="text-lg font-bold text-foreground">점검 중</h1>
+          <p className="text-sm text-muted-foreground">{maintenance.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-dvh">
+      <ScheduleControls
+        monthValue={monthValue}
+        onMonthChange={setMonthValue}
+        onSearch={handleSearch}
+        searchFilter={searchFilter}
+        onSearchFilterChange={setSearchFilter}
+        isLoading={isLoading}
+      />
+      <div className="flex-1 overflow-hidden pb-14 px-2">
+        <ScheduleTable
+          names={names}
+          dateRange={dateRange}
+          scheduleMap={scheduleMap}
+          isLoading={isLoading}
+          error={error}
+          emptyMessage={emptyMessage}
+          holidays={holidays}
+        />
+      </div>
+      <BottomTabs selectedTab={selectedTab} onTabChange={setSelectedTab} />
+    </div>
+  );
+}

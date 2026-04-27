@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월간 근무표 (Supabase Ver.)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* ✅ CSS 변수 정의 - 라이트/다크 모드 */
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #ddd;
+            --tab-bg: #f8f9fa;
+            --tab-text: #495057;
+            --tab-active-bg: #e9ecef;
+            --input-bg: #ffffff;
+            --input-border: #ccc;
+            --table-header-bg: #ffffff;
+            --table-cell-bg: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --loading-text: #666;
+            --error-text: #ff3333;
+            --info-text: #ff9900;
+            --turn-hyu: #ffcccc;
+            --turn-dae: #d4f4c9;
+            --turn-default: #e0e0e0;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a2e;
+            --text-color: #e0e0e0;
+            --border-color: #3a3a5a;
+            --tab-bg: #16213e;
+            --tab-text: #b0b0c0;
+            --tab-active-bg: #0f3460;
+            --input-bg: #16213e;
+            --input-border: #3a3a5a;
+            --table-header-bg: #16213e;
+            --table-cell-bg: #1a1a2e;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --loading-text: #888;
+            --error-text: #ff6b6b;
+            --info-text: #ffc107;
+            --turn-hyu: #5c3a3a;
+            --turn-dae: #3a5c3a;
+            --turn-default: #4a4a4a;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px;
+            text-align: center;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .tabs {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 10;
+            background-color: var(--tab-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .tab {
+            flex-grow: 1;
+            padding: 10px 15px;
+            cursor: pointer;
+            border: none;
+            border-left: 1px solid var(--border-color);
+            font-weight: bold;
+            color: var(--tab-text);
+            font-size: 14px;
+            background-color: var(--tab-bg);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .tab:first-child { border-left: none; }
+        .tab.active {
+            background-color: var(--tab-active-bg);
+            border-bottom: 3px solid #4a90d9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 5px;
+            align-items: center;
+            flex-wrap: wrap; 
+        }
+        .controls input[type="month"],
+        .controls input[type="text"],
+        .controls button {
+            padding: 5px;
+            font-size: 14px;
+            border: 1px solid var(--input-border);
+            border-radius: 5px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        .controls button {
+            background-color: #4a90d9;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .controls button:hover {
+            background-color: #3a7bc8;
+        }
+
+        /* ✅ 다크모드 토글 스위치 스타일 */
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4a90d9;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        .theme-icon {
+            font-size: 16px;
+            user-select: none;
+        }
+
+        .table-container {
+            width: 100%;
+            height: 600px; 
+            overflow-x: auto;
+            overflow-y: scroll;
+            position: relative;
+            border: 1px solid var(--border-color);
+            margin: 0 auto;
+            padding-bottom: 50px;
+            background-color: var(--bg-color);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: auto;
+            min-width: 600px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            text-align: center;
+            font-size: 12px;
+            white-space: nowrap;
+            transition: border-color 0.3s;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background-color: var(--table-header-bg);
+            z-index: 5;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: background-color 0.3s;
+        }
+
+        .sticky-name {
+            background-color: var(--table-header-bg);
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            font-weight: bold;
+            box-shadow: 2px 0 5px var(--shadow-color);
+            transition: background-color 0.3s;
+        }
+
+        thead th.sticky-name {
+            z-index: 6;
+        }
+        
+        .loading-message { padding: 15px; font-size: 14px; color: var(--loading-text); }
+        .error-message { padding: 15px; font-size: 14px; color: var(--error-text); font-weight: bold; }
+        .info-message { padding: 15px; font-size: 14px; color: var(--info-text); font-weight: bold; }
+    </style>
+</head>
+
+<body>
+    
+    <div class="controls">
+        <!-- ✅ 다크모드 토글 스위치 (날짜 입력 왼쪽에 배치) -->
+        <div class="theme-switch-wrapper">
+            <span class="theme-icon">☀️</span>
+            <label class="theme-switch">
+                <input type="checkbox" id="themeToggle">
+                <span class="slider"></span>
+            </label>
+            <span class="theme-icon">🌙</span>
+        </div>
+
+        <input type="month" id="monthInput">
+        <button id="loadButton">조회</button>
+        <input type="text" id="searchInput" placeholder="이름으로 검색...">
+    </div>
+
+    <div class="table-container">
+        <div id="workerTableContainer"></div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" id="tab-engineer">기관사</div>
+        <div class="tab" id="tab-chief">차장</div>
+    </div>
+
+    <script>
+        // ✅ 1. Supabase 클라이언트 초기화
+        const POSITION_ENGINEER = "기관사";
+        const POSITION_CHIEF = "차장";
+
+        const SUPABASE_URL = 'https://srsyxsddjbojnwvjoera.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyc3l4c2RkamJvam53dmpvZXJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NjY4NTEsImV4cCI6MjA3NDM0Mjg1MX0.wmTrMzDqBs10qL_wBeJJQTjQMuCuvfAmY6_eW2brqT8';
+
+        const { createClient } = supabase; 
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
+
+        // ✅ 2. 전역 변수 선언
+        let selectedTab = POSITION_ENGINEER;
+        let allDataForMonth = []; 
+        let uniqueDates = []; 
+        let isLoading = false;
+        let isDarkMode = false; // ✅ 다크모드 상태
+
+        // ✅ 3. 헬퍼 함수 (날짜 계산용)
+        function getTodayMonth() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, "0");
+            return `${year}-${month}`;
+        }
+        function getTodayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, "0");
+            const day = String(today.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+        }
+        function formatDate(dateString) {
+            if (!dateString) return "";
+            return new Date(dateString).toISOString().split("T")[0];
+        }
+
+        // ✅ 다크모드 토글 함수
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            if (isDarkMode) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            }
+            // 테이블 다시 렌더링 (색상 업데이트)
+            if (allDataForMonth.length > 0) {
+                renderTableByPosition(selectedTab);
+            }
+        }
+
+        // ✅ 저장된 테마 불러오기
+        function loadSavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                isDarkMode = true;
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('themeToggle').checked = true;
+            }
+        }
+        
+        // ✅ 4. 데이터 로드 함수
+        async function loadData(startDateStr, endDateStr) {
+            if (isLoading) return;
+            isLoading = true;
+            const container = document.getElementById("workerTableContainer");
+            container.innerHTML = "<p class='loading-message'>데이터 로딩 중...</p>";
+
+            uniqueDates = [];
+            let currentDate = new Date(startDateStr);
+            const finalEndDate = new Date(endDateStr);
+            while (currentDate <= finalEndDate) {
+                uniqueDates.push(currentDate.toISOString().split("T")[0]);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .rpc('get_schedule_by_range', {
+                        p_start_date: startDateStr,
+                        p_end_date: endDateStr
+                    })
+                    .range(0, 10000);
+
+                if (error) throw error; 
+
+                if (!data || data.length === 0) {
+                     container.innerHTML = "<p class='info-message'>데이터가 없습니다. (DB에 기준점이 입력되었는지 확인)</p>";
+                     allDataForMonth = [];
+                     return;
+                }
+
+                console.log(`[loadData] API에서 ${data.length}개의 데이터를 받았습니다.`);
+                const uniquePositions = [...new Set(data.map(d => `"${d.staff_position}"`))];
+                console.log(`[loadData] DB에 있는 모든 staff_position 값들: ${uniquePositions.join(', ')}`);
+
+                allDataForMonth = data; 
+                renderTableByPosition(selectedTab);
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                container.innerHTML = "<p class='error-message'>데이터 로딩 실패: " + error.message + "</p>";
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // ✅ 5. "조회" 버튼 클릭 시 실행될 함수
+        function handleSearchButtonClick() {
+            const monthValue = document.getElementById("monthInput").value;
+            if (!monthValue) {
+                alert("조회할 월(Month)을 선택해주세요.");
+                return;
+            }
+
+            const today = new Date(getTodayDate());
+
+            const [year, month] = monthValue.split('-').map(Number);
+            const selectedMonthStartDate = new Date(year, month - 1, 1);
+            const selectedMonthEndDate = new Date(year, month, 0); 
+
+            if (selectedMonthEndDate < today) {
+                const container = document.getElementById("workerTableContainer");
+                container.innerHTML = `<p class='error-message'>${monthValue}월은 이미 지난 월입니다. 오늘(${getTodayDate()}) 이후의 월을 선택해주세요.</p>`;
+                allDataForMonth = [];
+                return;
+            }
+
+            let queryStartDate;
+            if (selectedMonthStartDate < today) {
+                queryStartDate = today; 
+            } else {
+                queryStartDate = selectedMonthStartDate; 
+            }
+
+            const queryStartDateStr = queryStartDate.toISOString().split("T")[0];
+            const queryEndDateStr = selectedMonthEndDate.toISOString().split("T")[0];
+
+            loadData(queryStartDateStr, queryEndDateStr);
+        }
+
+        // ✅ 6. 탭 전환
+        function switchTab(position) {
+            selectedTab = position;
+            document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+            document.getElementById(position === POSITION_ENGINEER ? "tab-engineer" : "tab-chief").classList.add("active");
+            renderTableByPosition(position); 
+        }
+
+        // ✅ 7. 테이블 렌더링
+        function renderTableByPosition(position) {
+            const container = document.getElementById("workerTableContainer");
+            
+            const trimmedPosition = position.trim(); 
+            const searchValue = document.getElementById("searchInput").value.trim().toLowerCase();
+
+            const tabFiltered = allDataForMonth.filter(worker => 
+                worker.staff_position && worker.staff_position.trim() === trimmedPosition
+            );
+            
+            const searchFiltered = tabFiltered.filter(worker => 
+                worker.name.toLowerCase().includes(searchValue)
+            );
+
+            const nameMap = new Map();
+            for (const item of searchFiltered) {
+                const name = item.name;
+                if (!nameMap.has(name)) {
+                    nameMap.set(name, new Map());
+                }
+                nameMap.get(name).set(formatDate(item.date), item.turn);
+            }
+            
+            if (nameMap.size === 0) {
+                if (allDataForMonth.length === 0) {
+                     container.innerHTML = "<p class='info-message'>표시할 데이터가 없습니다. (먼저 조회를 눌러주세요)</p>";
+                } else if (tabFiltered.length === 0) {
+                    container.innerHTML = `<p class='info-message'>"${trimmedPosition}" 탭의 데이터가 없습니다. (API가 1000개만 반환했을 수 있습니다.)</p>`;
+                } else {
+                    container.innerHTML = "<p class='info-message'>검색 결과가 없습니다.</p>";
+                }
+                return;
+            }
+
+            const allNames = [...nameMap.keys()].sort();
+
+            let tableHtml = `<table>
+                <thead>
+                    <tr>
+                        <th class="sticky-header sticky-name">이름</th>`;
+            
+            uniqueDates.forEach(date => {
+                tableHtml += `<th class="sticky-header" style="color: ${getDayColor(date)};">
+                    ${date.slice(5)}<br>(${getDayName(date)})
+                </th>`;
+            });
+
+            tableHtml += `</tr></thead><tbody>`;
+
+            allNames.forEach(name => {
+                tableHtml += `<tr><td class="sticky-name">${name}</td>`;
+                uniqueDates.forEach(date => {
+                    const turn = nameMap.get(name).get(date) || "-";
+                    tableHtml += `<td style="background-color: ${getTurnColor(turn, date)};">${turn}</td>`;
+                });
+                tableHtml += "</tr>";
+            });
+
+            tableHtml += `</tbody></table>`;
+            container.innerHTML = tableHtml;
+        }
+        
+        // ✅ 헬퍼 함수들
+        function getDayColor(dateString) {
+            const dayName = getDayName(dateString);
+            if (dayName === "토") return "#4a90d9";
+            if (dayName === "일") return "#ff6b6b";
+            return isDarkMode ? "#e0e0e0" : "#333";
+        }
+
+        function getDayName(dateString) {
+            const days = ["일", "월", "화", "수", "목", "금", "토"];
+            return days[new Date(dateString).getDay()];
+        }
+
+        function getTurnColor(turnText, dateString) {
+            const dayName = getDayName(dateString);
+            const isWeekend = dayName === "토" || dayName === "일";
+            const weekendHolidayTurns = ["31", "32", "33", "34", "35", "36", "37"];
+
+            // ✅ 다크모드 색상 적용
+            const colors = isDarkMode ? {
+                "휴": "#5c3a3a",
+                "대": "#3a5c3a",
+                "~": "#4a4a4a",
+                "default": "#2a2a3e"
+            } : {
+                "휴": "#ffcccc",
+                "대": "#d4f4c9",
+                "~": "#e0e0e0",
+                "default": "#ffffff"
+            };
+
+            if (isWeekend && weekendHolidayTurns.includes(turnText)) {
+                return colors["휴"];
+            }
+
+            for (const key in colors) {
+                if (key !== "default" && turnText.includes(key)) return colors[key];
+            }
+            return colors["default"];
+        }
+
+        function filterWorkers() {
+            renderTableByPosition(selectedTab);
+        }
+
+        // ✅ 초기화
+        async function init() {
+            // 저장된 테마 불러오기
+            loadSavedTheme();
+
+            document.getElementById("monthInput").value = getTodayMonth();
+
+            // 이벤트 리스너 연결
+            document.getElementById("tab-engineer").addEventListener("click", () => switchTab(POSITION_ENGINEER));
+            document.getElementById("tab-chief").addEventListener("click", () => switchTab(POSITION_CHIEF));
+            document.getElementById("loadButton").addEventListener("click", handleSearchButtonClick);
+            document.getElementById("searchInput").addEventListener("input", filterWorkers);
+            
+            // ✅ 다크모드 토글 이벤트
+            document.getElementById("themeToggle").addEventListener("change", toggleTheme);
+
+            const today = new Date(getTodayDate());
+            const endDate = new Date(today);
+            endDate.setDate(today.getDate() + 30);
+
+            const startDateStr = today.toISOString().split("T")[0];
+            const endDateStr = endDate.toISOString().split("T")[0];
+
+            try {
+                await loadData(startDateStr, endDateStr);
+            } catch (error) {
+                console.error("초기 데이터 로딩 중 에러 발생:", error);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", init);
+    </script>
+
+</body>
+
+</html>
