@@ -1,5 +1,9 @@
-import { ScheduleViewer } from "@/components/schedule-viewer";
+import { redirect } from "next/navigation";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 
-export default function Home() {
-  return <ScheduleViewer />;
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const ok = await isAdminAuthenticated();
+  redirect(ok ? "/admin" : "/admin/login");
 }
