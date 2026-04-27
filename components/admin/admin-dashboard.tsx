@@ -64,6 +64,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
     const { data, error } = await supabase
       .from(TABLE)
       .select("*")
+      .eq("office_name", office)
       .order("staff_id", { ascending: true })
       .range(0, 10000);
 
@@ -74,7 +75,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
       setRows((data ?? []) as CoworkerRow[]);
     }
     setIsLoading(false);
-  }, []);
+  }, [office]);
 
   useEffect(() => {
     fetchRows();
@@ -122,17 +123,21 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
 
   const handleSubmit = async (input: CoworkerInput) => {
     setError(null);
+    // 다른 소속으로 변경되지 않도록 항상 현재 로그인 소속으로 고정
+    const scoped: CoworkerInput = { ...input, office_name: office };
+
     if (formMode === "create") {
-      const { error } = await supabase.from(TABLE).insert(input);
+      const { error } = await supabase.from(TABLE).insert(scoped);
       if (error) throw new Error(error.message);
-      setInfo(`${input.staff_name} 님을 추가했습니다.`);
+      setInfo(`${scoped.staff_name} 님을 추가했습니다.`);
     } else if (editingRow) {
       const { error } = await supabase
         .from(TABLE)
-        .update(input)
-        .eq("staff_id", editingRow.staff_id);
+        .update(scoped)
+        .eq("staff_id", editingRow.staff_id)
+        .eq("office_name", office);
       if (error) throw new Error(error.message);
-      setInfo(`${input.staff_name} 님의 정보를 수정했습니다.`);
+      setInfo(`${scoped.staff_name} 님의 정보를 수정했습니다.`);
     }
     setFormOpen(false);
     setEditingRow(null);
@@ -146,7 +151,8 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
     const { error } = await supabase
       .from(TABLE)
       .delete()
-      .eq("staff_id", deleteTarget.staff_id);
+      .eq("staff_id", deleteTarget.staff_id)
+      .eq("office_name", office);
     setIsDeleting(false);
     if (error) {
       setError(error.message);
@@ -337,6 +343,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
         open={formOpen}
         mode={formMode}
         initial={editingRow}
+        lockedOffice={office}
         onClose={() => {
           setFormOpen(false);
           setEditingRow(null);

@@ -36,7 +36,7 @@ export const COWORKER_COLUMNS: CoworkerColumnMeta[] = [
     type: "select",
     options: [...STAFF_POSITION_OPTIONS],
   },
-  { key: "office_name", label: "소속", type: "text" },
+  { key: "office_name", label: "소속", type: "text", hidden: true },
   { key: "phone_number", label: "전화번호", type: "text" },
   { key: "reference_date", label: "기준일", type: "date" },
   { key: "reference_shift", label: "기준 근무", type: "text" },

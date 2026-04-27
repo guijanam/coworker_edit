@@ -18,6 +18,8 @@ interface CoworkerFormProps {
   open: boolean;
   mode: "create" | "edit";
   initial?: CoworkerRow | null;
+  /** 현재 로그인 소속 — office_name 필드를 고정하고 추가 시 자동 채움 */
+  lockedOffice?: string;
   onClose: () => void;
   onSubmit: (input: CoworkerInput) => Promise<void>;
 }
@@ -31,6 +33,7 @@ export function CoworkerForm({
   open,
   mode,
   initial,
+  lockedOffice,
   onClose,
   onSubmit,
 }: CoworkerFormProps) {
@@ -40,10 +43,12 @@ export function CoworkerForm({
 
   // 폼에 실제로 렌더링할 컬럼:
   // - hidden 컬럼은 기본 제외
-  // - 단 staff_id는 PK이므로 create 모드에서만 노출
+  // - staff_id는 PK이므로 create 모드에서만 노출
+  // - office_name은 hidden이지만 잠금 상태로 항상 보여줌 (현재 소속 확인용)
   const visibleFields: CoworkerColumnMeta[] = useMemo(() => {
     return COWORKER_COLUMNS.filter((col) => {
       if (col.key === "staff_id") return mode === "create";
+      if (col.key === "office_name") return true;
       return !col.hidden;
     });
   }, [mode]);
@@ -56,12 +61,16 @@ export function CoworkerForm({
         const v = initial[col.key];
         next[col.key] = v === null || v === undefined ? "" : String(v);
       }
+      if (lockedOffice) next.office_name = lockedOffice;
       setValues(next);
     } else {
-      setValues(EMPTY);
+      setValues({
+        ...EMPTY,
+        ...(lockedOffice ? { office_name: lockedOffice } : {}),
+      });
     }
     setError(null);
-  }, [open, initial]);
+  }, [open, initial, lockedOffice]);
 
   const handleChange = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -165,7 +174,10 @@ export function CoworkerForm({
                 type={col.type}
                 value={values[col.key] ?? ""}
                 onChange={(e) => handleChange(col.key, e.target.value)}
-                disabled={isSaving}
+                disabled={
+                  isSaving || (col.key === "office_name" && !!lockedOffice)
+                }
+                readOnly={col.key === "office_name" && !!lockedOffice}
                 required={col.required}
               />
             )}
