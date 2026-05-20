@@ -94,6 +94,7 @@ export function CoworkerForm({
       phone_number: emptyToNull(values.phone_number),
       reference_date: emptyToNull(values.reference_date),
       reference_shift: emptyToNull(values.reference_shift),
+      leave: values.leave === "true",
       // 숨김 필드는 기존 값 유지 (수정 시), 추가 시에는 null
       pattern_id: initial?.pattern_id ?? null,
       user_id: initial?.user_id ?? null,
@@ -156,6 +157,22 @@ export function CoworkerForm({
                   </option>
                 ))}
               </Select>
+            ) : col.type === "boolean" ? (
+              <div className="flex items-center h-9">
+                <input
+                  id={`field-${col.key}`}
+                  type="checkbox"
+                  checked={values[col.key] === "true"}
+                  onChange={(e) =>
+                    handleChange(col.key, e.target.checked ? "true" : "false")
+                  }
+                  disabled={isSaving}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {values[col.key] === "true" ? "휴직 중" : "근무 중"}
+                </span>
+              </div>
             ) : (
               <Input
                 id={`field-${col.key}`}

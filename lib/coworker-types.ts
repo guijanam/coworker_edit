@@ -8,6 +8,7 @@ export interface CoworkerRow {
   staff_position: string | null;
   office_name: string | null;
   phone_number: string | null;
+  leave: boolean | null;
 }
 
 export type CoworkerInput = Omit<CoworkerRow, "staff_id"> & {
@@ -17,7 +18,7 @@ export type CoworkerInput = Omit<CoworkerRow, "staff_id"> & {
 export interface CoworkerColumnMeta {
   key: keyof CoworkerRow;
   label: string;
-  type: "text" | "number" | "date" | "select";
+  type: "text" | "number" | "date" | "select" | "boolean";
   required?: boolean;
   /** 관리자 화면(목록/수정 폼)에서 숨길지 여부 */
   hidden?: boolean;
@@ -40,6 +41,7 @@ export const COWORKER_COLUMNS: CoworkerColumnMeta[] = [
   { key: "phone_number", label: "전화번호", type: "text" },
   { key: "reference_date", label: "기준일", type: "date" },
   { key: "reference_shift", label: "기준 근무", type: "text" },
+  { key: "leave", label: "휴직", type: "boolean" },
   { key: "pattern_id", label: "패턴 ID", type: "text", hidden: true },
   { key: "user_id", label: "사용자 ID", type: "text", hidden: true },
 ];

@@ -323,13 +323,13 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
                 </TableRow>
               ) : (
                 filtered.map((row) => (
-                  <TableRow key={row.staff_id}>
+                  <TableRow key={row.staff_id} className={cn(row.leave && "opacity-50")}>
                     {VISIBLE_COWORKER_COLUMNS.map((col) => (
                       <TableCell
                         key={col.key}
                         className="text-xs whitespace-nowrap text-center"
                       >
-                        {formatCell(row[col.key])}
+                        {formatCell(row[col.key], col.type)}
                       </TableCell>
                     ))}
                     <TableCell className="text-xs whitespace-nowrap text-center sticky right-0 bg-background">
@@ -413,7 +413,8 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
   );
 }
 
-function formatCell(value: unknown): string {
+function formatCell(value: unknown, type?: string): string {
+  if (type === "boolean") return value === true ? "휴직" : "-";
   if (value === null || value === undefined) return "-";
   if (typeof value === "string" && value.length === 0) return "-";
   return String(value);
