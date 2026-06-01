@@ -9,6 +9,9 @@ import {
   RefreshCw,
   Search,
   Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -50,6 +53,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
 
   const [search, setSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState<string>("all");
+  const [nameSort, setNameSort] = useState<"none" | "asc" | "desc">("none");
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -97,7 +101,7 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const result = rows.filter((r) => {
       if (positionFilter !== "all" && r.staff_position !== positionFilter)
         return false;
       if (!q) return true;
@@ -107,7 +111,23 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
         r.phone_number?.toLowerCase().includes(q)
       );
     });
-  }, [rows, search, positionFilter]);
+
+    if (nameSort !== "none") {
+      const dir = nameSort === "asc" ? 1 : -1;
+      result.sort(
+        (a, b) =>
+          (a.staff_name ?? "").localeCompare(b.staff_name ?? "", "ko") * dir
+      );
+    }
+
+    return result;
+  }, [rows, search, positionFilter, nameSort]);
+
+  const toggleNameSort = () => {
+    setNameSort((prev) =>
+      prev === "none" ? "asc" : prev === "asc" ? "desc" : "none"
+    );
+  };
 
   const openCreate = () => {
     setFormMode("create");
@@ -283,14 +303,43 @@ export function AdminDashboard({ office }: AdminDashboardProps) {
           <Table className="min-w-max">
             <TableHeader>
               <TableRow>
-                {VISIBLE_COWORKER_COLUMNS.map((col) => (
-                  <TableHead
-                    key={col.key}
-                    className="bg-background text-xs whitespace-nowrap text-center"
-                  >
-                    {col.label}
-                  </TableHead>
-                ))}
+                {VISIBLE_COWORKER_COLUMNS.map((col) =>
+                  col.key === "staff_name" ? (
+                    <TableHead
+                      key={col.key}
+                      className="bg-background text-xs whitespace-nowrap text-center"
+                    >
+                      <button
+                        type="button"
+                        onClick={toggleNameSort}
+                        className="inline-flex items-center justify-center gap-1 mx-auto hover:text-foreground"
+                        aria-label={`이름 정렬: ${
+                          nameSort === "asc"
+                            ? "오름차순"
+                            : nameSort === "desc"
+                            ? "내림차순"
+                            : "없음"
+                        }`}
+                      >
+                        {col.label}
+                        {nameSort === "asc" ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : nameSort === "desc" ? (
+                          <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        )}
+                      </button>
+                    </TableHead>
+                  ) : (
+                    <TableHead
+                      key={col.key}
+                      className="bg-background text-xs whitespace-nowrap text-center"
+                    >
+                      {col.label}
+                    </TableHead>
+                  )
+                )}
                 <TableHead className="bg-background text-xs text-center sticky right-0">
                   관리
                 </TableHead>
